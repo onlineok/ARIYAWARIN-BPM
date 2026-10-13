@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "ARIYAWARIN Blood Pressure Monitor",
+  "short_name": "ARIYAWARIN BP",
+  "description": "แอปพลิเคชันบันทึกและประเมินผลสุขภาพความดันโลหิตส่วนตัว บันทึก 2 ช่วงเวลา (เช้า 05:00-11:30 และเย็น 15:00 เป็นต้นไป) พร้อมระบบแจ้งเตือนและเชื่อมต่อ Google Sheets",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

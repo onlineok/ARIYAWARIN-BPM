@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+.font-mono-numbers {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle organic pulse animation for brand emblem & logo presence */
+@keyframes softPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 2px 6px rgba(20, 184, 166, 0.2));
+  }
+  50% {
+    transform: scale(1.025);
+    filter: drop-shadow(0 4px 14px rgba(20, 184, 166, 0.42));
+  }
+}
+
+.animate-soft-pulse {
+  animation: softPulse 3.6s ease-in-out infinite;
+}
+
+.animate-soft-pulse:hover {
+  animation-play-state: paused;
+}
+
+/* Custom scrollbar for data tables and charts */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}

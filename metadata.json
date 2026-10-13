@@ -1,0 +1,6 @@
+{
+  "name": "ARIYAWARIN Blood Pressure Monitor",
+  "description": "แอปพลิเคชันบันทึกและประเมินผลสุขภาพความดันโลหิตส่วนตัว บันทึก 2 ช่วงเวลา (เช้าและเย็น) ช่วงละ 2 ครั้ง พร้อมแดชบอร์ดกราฟและการประเมินผลตามหลักการแพทย์สากล",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

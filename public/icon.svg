@@ -1,0 +1,125 @@
+<svg width="512" height="512" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Shield Gradient: Deep Medical Teal & Obsidian Emerald -->
+    <linearGradient id="ariShieldGrad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#134e4a"/>
+      <stop offset="45%" stop-color="#0f766e"/>
+      <stop offset="85%" stop-color="#042f2e"/>
+      <stop offset="100%" stop-color="#021d1c"/>
+    </linearGradient>
+
+    <!-- Radial Ambient Inner Core Glow -->
+    <radialGradient id="ariRadialGlow" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#0d9488" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#042f2e" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Inner Ambient Badge Gradient -->
+    <linearGradient id="ariPrimaryGrad" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0d9488" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#0f766e" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#115e59" stop-opacity="0.1"/>
+    </linearGradient>
+
+    <!-- Cardiovascular Pulse Waveform Gradient: Vibrant Cyan, Mint & Emerald -->
+    <linearGradient id="ariPulseGrad" x1="10" y1="100" x2="190" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="30%" stop-color="#38bdf8"/>
+      <stop offset="65%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+
+    <!-- Monogram Serif Stem Light Gradient -->
+    <linearGradient id="ariGoldLight" x1="40" y1="30" x2="160" y2="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="60%" stop-color="#f0fdfa" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ccfbf1" stop-opacity="0.6"/>
+    </linearGradient>
+
+    <!-- Soft Glow Filter for Vital Node and Wave Ribbons -->
+    <filter id="ariGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Deep Ambient Drop Shadow for Monogram Leg -->
+    <filter id="ariShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#021d1c" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle App Icon Base Container (Continuous curvature for iOS/Android/PWA) -->
+  <rect x="5" y="5" width="190" height="190" rx="48" fill="url(#ariShieldGrad)" stroke="#14b8a6" stroke-width="2.5" stroke-opacity="0.5"/>
+
+  <!-- Radial Core Ambient Glow -->
+  <rect x="6" y="6" width="188" height="188" rx="46" fill="url(#ariRadialGlow)"/>
+
+  <!-- Inner Ambient Border Ring -->
+  <rect x="12" y="12" width="176" height="176" rx="40" stroke="#2dd4bf" stroke-width="1" stroke-opacity="0.25" fill="none"/>
+
+  <!-- Background Cardiovascular ECG Pulse Wave (Rhythm Line) -->
+  <path d="M22 122 L52 122 L64 104 L74 140 L86 86 L98 128 L110 114 L120 122 L178 122" 
+        stroke="url(#ariPulseGrad)" 
+        stroke-width="2.2" 
+        stroke-opacity="0.32" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+
+  <!-- === The Signature ARIYAWARIN 'A' Monogram === -->
+  <!-- 1. Left Serif Foot & Upward Slender Leg -->
+  <path d="M38 152 C45 152 50 148 55 140 L94 48 C97 42 100 38 105 38 C110 38 113 42 116 48 L155 140 C160 148 165 152 172 152" 
+        stroke="url(#ariGoldLight)" 
+        stroke-width="3.6" 
+        stroke-linecap="round" 
+        filter="url(#ariShadow)"/>
+
+  <!-- 2. Left Stem Inner Decorative Pinstripe (Refined Elegance) -->
+  <path d="M58 135 L96 46" 
+        stroke="#2dd4bf" 
+        stroke-width="1.8" 
+        stroke-opacity="0.8" 
+        stroke-linecap="round"/>
+
+  <!-- 3. Bold Right Diagonal Structural Stem (Stability & Authority) -->
+  <path d="M102 42 L148 148 C150 152 154 153 162 153 L164 153" 
+        stroke="#ffffff" 
+        stroke-width="7.2" 
+        stroke-linecap="round" 
+        filter="url(#ariShadow)"/>
+
+  <!-- 4. Top Serif Crown of 'A' Monogram -->
+  <path d="M92 40 C98 37 112 37 118 40" 
+        stroke="#ffffff" 
+        stroke-width="3.2" 
+        stroke-linecap="round"/>
+
+  <!-- 5. Fluid Cardiovascular Wave Ribbons across Crossbar (Arterial Circulation) -->
+  <!-- Ribbon 1: Upper glowing fluid wave -->
+  <path d="M24 128 C54 132 80 101 118 95 C148 90 168 99 184 107" 
+        stroke="url(#ariPulseGrad)" 
+        stroke-width="3.4" 
+        stroke-linecap="round" 
+        fill="none" 
+        filter="url(#ariGlow)"/>
+
+  <!-- Ribbon 2: Middle crisp white pulse wave ribbon -->
+  <path d="M34 138 C64 140 92 113 124 107 C152 102 166 111 178 117" 
+        stroke="#ffffff" 
+        stroke-width="2.6" 
+        stroke-linecap="round" 
+        fill="none"/>
+
+  <!-- Ribbon 3: Lower cyan arterial flow wave -->
+  <path d="M46 147 C70 148 98 125 130 119 C154 115 166 121 174 125" 
+        stroke="#2dd4bf" 
+        stroke-width="2.2" 
+        stroke-opacity="0.88" 
+        stroke-linecap="round" 
+        fill="none"/>
+
+  <!-- 6. Cardiovascular Vital Pulse Node (Heartbeat Peak Indicator) -->
+  <circle cx="118" cy="95" r="5" fill="#38bdf8" filter="url(#ariGlow)"/>
+  <circle cx="118" cy="95" r="2.5" fill="#ffffff"/>
+  <circle cx="118" cy="95" r="1" fill="#ecfeff"/>
+</svg>
