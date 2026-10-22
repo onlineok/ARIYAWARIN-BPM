@@ -64,13 +64,10 @@ export const DoctorReportView: React.FC<DoctorReportViewProps> = ({
     return null;
   }, [activeMember]);
 
-  // Filter records for active member if allRecords is provided and member is selected
+  // Filter records strictly for active member
   const memberRecords = useMemo(() => {
     if (activeMember && allRecords && allRecords.length > 0) {
-      const filtered = allRecords.filter(
-        (r) => !r.memberId || r.memberId === activeMember.id
-      );
-      return filtered.length > 0 ? filtered : records;
+      return allRecords.filter((r) => (r.memberId || 'mem-1') === activeMember.id);
     }
     return records;
   }, [records, allRecords, activeMember]);

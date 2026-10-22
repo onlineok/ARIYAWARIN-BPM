@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { DailyBPRecord } from '../types/bp';
 import { Member } from '../types/member';
-import { SpreadsheetConfig } from '../services/googleSheets';
 import { User as FirebaseUser } from 'firebase/auth';
 import { AriyawarinLogo } from './AriyawarinLogo';
 import { computeDailyMetrics, classifyBP, formatThaiDate } from '../utils/bpClassification';
@@ -44,15 +43,8 @@ interface HomeViewProps {
   onOpenBrandModal: () => void;
   onOpenNotificationModal: () => void;
   onOpenCsvExport?: () => void;
-  // Google Workspace props
   googleUser: FirebaseUser | null;
-  spreadsheetConfig: SpreadsheetConfig | null;
-  isConnectingGoogle: boolean;
-  isSyncingSheets: boolean;
-  onGoogleLogin: () => void;
   onGoogleLogout: () => void;
-  onCreateSpreadsheet: () => void;
-  onSyncAllToSheets: () => void;
 }
 
 const THAI_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
@@ -82,13 +74,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenNotificationModal,
   onOpenCsvExport,
   googleUser,
-  spreadsheetConfig,
-  isConnectingGoogle,
-  isSyncingSheets,
-  onGoogleLogin,
   onGoogleLogout,
-  onCreateSpreadsheet,
-  onSyncAllToSheets,
 }) => {
   // Real-time Live Clock State
   const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
@@ -152,12 +138,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   // Today's record for active member
   const todayRecord = useMemo(() => {
-    return (
-      records.find((r) => r.date === todayDateStr && (r.memberId === activeMember?.id || !r.memberId)) ||
-      records.find((r) => r.date === todayDateStr) ||
-      null
-    );
-  }, [records, todayDateStr, activeMember?.id]);
+    if (!activeMember) return null;
+    return records.find((r) => r.date === todayDateStr && (r.memberId || 'mem-1') === activeMember.id) || null;
+  }, [records, todayDateStr, activeMember]);
 
   // Latest record overall for active member
   const latestRecord = useMemo(() => {
@@ -298,53 +281,42 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* 2. Google Sheets & Drive Connection Section */}
+      {/* 2. In-App Health Database & Personalized Account Section */}
       <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
           <div className="flex items-start gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-100 border border-emerald-200 flex items-center justify-center shrink-0 shadow-xs">
-              <FileSpreadsheet className="w-6 h-6 text-emerald-700" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-100 border border-teal-200 flex items-center justify-center shrink-0 shadow-xs">
+              <ShieldCheck className="w-6 h-6 text-teal-700" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                  ระบบเชื่อมต่อ Google Sheets & Drive
+                  ระบบฐานข้อมูลสุขภาพส่วนบุคคล (In-App Database)
                 </h2>
-                {googleUser && spreadsheetConfig ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    เชื่อมต่อคลาวด์เรียบร้อย
-                  </span>
-                ) : googleUser ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                    พร้อมสร้างชีต
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                    ยังไม่ได้เข้าสู่ระบบ
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  กรองเฉพาะข้อมูลของคุณแบบเฉพาะเจาะจง
+                </span>
               </div>
 
               <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-                {spreadsheetConfig
-                  ? `กำลังซิงค์กับ: "${spreadsheetConfig.title}" • ข้อมูลความดันและสมาชิกจะถูกบันทึกอัตโนมัติไปยัง Google Drive ของคุณ`
-                  : 'สำรองข้อมูลความดันโลหิตและทะเบียนสมาชิกแบบเรียลไทม์ พร้อมเปิดดูและส่งต่อให้แพทย์ผ่าน Google Sheets ได้ทันที'}
+                บันทึกและจัดการข้อมูลในตัวระบบแบบแยกตามบัญชีผู้ใช้งาน ไม่สามารถเห็นข้อมูลของบุคคลอื่น และข้อมูลไม่สูญหายเมื่อปิดแอป
               </p>
 
-              {googleUser && (
-                <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 font-medium">
-                  {googleUser.photoURL ? (
-                    <img
-                      src={googleUser.photoURL}
-                      alt={googleUser.displayName || 'Google User'}
-                      className="w-4 h-4 rounded-full border border-slate-300"
-                    />
-                  ) : (
+              {activeMember && (
+                <div className="flex items-center gap-3 mt-2 text-xs text-slate-600 font-medium flex-wrap">
+                  <span className="flex items-center gap-1.5 text-teal-800 font-semibold bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200">
                     <User className="w-3.5 h-3.5 text-teal-600" />
+                    เจ้าของข้อมูล: {activeMember.firstName} {activeMember.lastName}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span>บันทึกแล้วทั้งหมด: <strong className="text-slate-800">{records.length} วัน</strong></span>
+                  {memberBMI && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span>BMI: <strong className="text-teal-700">{memberBMI.bmi} ({memberBMI.category.labelTh})</strong></span>
+                    </>
                   )}
-                  <span>บัญชี: {googleUser.displayName || 'ผู้ดูแลระบบที่ได้รับอนุญาต'}</span>
                 </div>
               )}
             </div>
@@ -352,75 +324,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* Action buttons */}
           <div className="flex items-center flex-wrap gap-2.5 w-full lg:w-auto justify-start lg:justify-end pt-3 lg:pt-0 border-t border-slate-100 lg:border-t-0">
-            {!googleUser ? (
+            <button
+              onClick={() => onNavigateTab('realtime')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>บันทึกความดันวันนี้</span>
+            </button>
+
+            <button
+              onClick={() => onNavigateTab('members')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5 text-slate-600" />
+              <span>ข้อมูลโปรไฟล์ & BMI</span>
+            </button>
+
+            {onOpenCsvExport && (
               <button
-                onClick={onGoogleLogin}
-                disabled={isConnectingGoogle}
-                className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold rounded-xl border border-slate-300 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                onClick={onOpenCsvExport}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition shadow-2xs cursor-pointer"
               >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
-                  <path
-                    fill="#EA4335"
-                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                  />
-                </svg>
-                <span>{isConnectingGoogle ? 'กำลังเชื่อมต่อ Google...' : 'เชื่อมต่อ Google Sheets & Drive'}</span>
+                <span>ส่งออก CSV</span>
               </button>
-            ) : (
-              <>
-                {spreadsheetConfig ? (
-                  <>
-                    <a
-                      href={spreadsheetConfig.spreadsheetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition shadow-2xs cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>เปิดใน Google Sheets</span>
-                    </a>
-
-                    <button
-                      onClick={onSyncAllToSheets}
-                      disabled={isSyncingSheets}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-spin' : ''}`} />
-                      <span>{isSyncingSheets ? 'กำลังซิงค์...' : 'ซิงค์ข้อมูลเดี๋ยวนี้'}</span>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={onCreateSpreadsheet}
-                    disabled={isSyncingSheets}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>สร้างสเปรดชีต ARIYAWARIN บน Drive</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={onGoogleLogout}
-                  className="px-3 py-2 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-                  title="ออกจากระบบ Google"
-                >
-                  ออกจากระบบ
-                </button>
-              </>
             )}
+
+            <button
+              onClick={onGoogleLogout}
+              className="px-3 py-2 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+              title="ออกจากระบบ"
+            >
+              ออกจากระบบ
+            </button>
           </div>
         </div>
       </section>

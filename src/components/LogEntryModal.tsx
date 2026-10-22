@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DailyBPRecord, SingleReading } from '../types/bp';
-import { classifyBP, formatThaiDate } from '../utils/bpClassification';
-import { getThaiTimestamp } from '../services/googleSheets';
+import { classifyBP, formatThaiDate, getThaiTimestamp } from '../utils/bpClassification';
 import {
   X,
   Sun,

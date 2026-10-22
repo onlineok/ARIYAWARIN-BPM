@@ -22,10 +22,8 @@ import {
 } from 'lucide-react';
 import { DailyBPRecord, SingleReading } from '../types/bp';
 import { Member } from '../types/member';
-import { classifyBP } from '../utils/bpClassification';
+import { classifyBP, getThaiTimestamp } from '../utils/bpClassification';
 import { calculateBMI } from '../utils/bmi';
-import { SpreadsheetConfig, appendOrUpdateBPRecordInSheet, getThaiTimestamp } from '../services/googleSheets';
-import { getAccessToken } from '../services/googleAuth';
 import { BackToHomeButton } from './BackToHomeButton';
 
 interface DailySmartEntryViewProps {
@@ -34,7 +32,6 @@ interface DailySmartEntryViewProps {
   activeMemberId: string;
   onSelectMember: (id: string) => void;
   onSaveRecord: (record: DailyBPRecord) => void;
-  spreadsheetConfig: SpreadsheetConfig | null;
   onConnectGoogle?: () => void;
   isGoogleConnected?: boolean;
   onOpenNotificationSettings?: () => void;
@@ -47,7 +44,6 @@ export const DailySmartEntryView: React.FC<DailySmartEntryViewProps> = ({
   activeMemberId,
   onSelectMember,
   onSaveRecord,
-  spreadsheetConfig,
   onConnectGoogle,
   isGoogleConnected,
   onOpenNotificationSettings,
@@ -134,12 +130,12 @@ export const DailySmartEntryView: React.FC<DailySmartEntryViewProps> = ({
 
   // Find existing record for today & active member
   const existingRecord = useMemo(() => {
+    if (!activeMember) return null;
     return (
-      records.find((r) => r.date === todayDateStr && (r.memberId === activeMember?.id || !r.memberId)) ||
-      records.find((r) => r.date === todayDateStr) ||
+      records.find((r) => r.date === todayDateStr && (r.memberId || 'mem-1') === activeMember.id) ||
       null
     );
-  }, [records, todayDateStr, activeMember?.id]);
+  }, [records, todayDateStr, activeMember]);
 
   // Form State for Morning
   const [m1Sys, setM1Sys] = useState<number | ''>('');
@@ -326,46 +322,14 @@ export const DailySmartEntryView: React.FC<DailySmartEntryViewProps> = ({
         syncedToSheets: false,
       };
 
-      // 1. Save locally to state & LocalStorage
+      // Save directly to in-app database
       onSaveRecord(recordToSave);
 
-      // 2. Immediate send to Google Sheets if connected
-      const token = await getAccessToken();
-      if (token && spreadsheetConfig?.spreadsheetId) {
-        const memberFullName = activeMember
-          ? `${activeMember.firstName} ${activeMember.lastName}`
-          : 'ทั่วไป';
-        const synced = await appendOrUpdateBPRecordInSheet(
-          token,
-          spreadsheetConfig.spreadsheetId,
-          recordToSave,
-          memberFullName,
-          saveTimestampTh
-        );
-
-        if (synced) {
-          recordToSave.syncedToSheets = true;
-          onSaveRecord(recordToSave);
-          setSyncStatusMsg({
-            type: 'success',
-            text: `บันทึกข้อมูลรอบ${targetPeriod === 'morning' ? 'เช้า' : 'เย็น'} และส่งข้อมูลไปยัง Google Sheets สำเร็จเรียบร้อย!`,
-            timestamp: saveTimestampTh,
-            sheetUrl: spreadsheetConfig.spreadsheetUrl,
-          });
-        } else {
-          setSyncStatusMsg({
-            type: 'info',
-            text: 'บันทึกข้อมูลในเครื่องเรียบร้อย (ส่งไป Google Sheets ล่าช้า จะซิงค์ให้อัตโนมัติ)',
-            timestamp: saveTimestampTh,
-          });
-        }
-      } else {
-        setSyncStatusMsg({
-          type: 'info',
-          text: `บันทึกข้อมูลรอบ${targetPeriod === 'morning' ? 'เช้า' : 'เย็น'} เรียบร้อยแล้ว (เชื่อมต่อ Google Sheets เพื่อซิงค์ข้อมูลบนคลาวด์)`,
-          timestamp: saveTimestampTh,
-        });
-      }
+      setSyncStatusMsg({
+        type: 'success',
+        text: `บันทึกข้อมูลรอบ${targetPeriod === 'morning' ? 'เช้า' : 'เย็น'} ลงในฐานข้อมูลส่วนบุคคลเรียบร้อยแล้ว!`,
+        timestamp: saveTimestampTh,
+      });
     } catch (err: any) {
       console.error('Error saving record', err);
       setSyncStatusMsg({

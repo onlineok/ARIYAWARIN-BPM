@@ -344,3 +344,19 @@ export function getPulseEmoji(pul: number): {
   };
 }
 
+/**
+ * Format a timestamp into standard Thai format (DD/MM/YYYY พ.ศ. HH:mm:ss)
+ */
+export function getThaiTimestamp(dateOrEpoch: number | Date = Date.now()): string {
+  const d = typeof dateOrEpoch === 'number' ? new Date(dateOrEpoch) : dateOrEpoch;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const yearBe = d.getFullYear() + 543;
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `${day}/${month}/${yearBe} ${hours}:${minutes}:${seconds}`;
+}
+
+

@@ -13,10 +13,8 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Provider with required Google Workspace Scopes
+// Google Auth Provider for user identification & security gate
 const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-provider.addScope('https://www.googleapis.com/auth/drive.file');
 
 // Whitelist of authorized administrators & accounts
 export const AUTHORIZED_EMAILS = [
@@ -81,6 +79,10 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
  */
 export const getAccessToken = async (): Promise<string | null> => {
   return cachedAccessToken;
+};
+
+export const hasActiveAccessToken = (): boolean => {
+  return Boolean(cachedAccessToken);
 };
 
 /**

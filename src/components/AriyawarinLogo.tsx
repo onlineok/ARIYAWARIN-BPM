@@ -23,6 +23,9 @@ export const AriyawarinLogo: React.FC<AriyawarinLogoProps> = ({
   theme = 'color',
   animated = true,
 }) => {
+  const rawId = React.useId();
+  const id = rawId.replace(/[^a-zA-Z0-9]/g, '');
+
   // Resolve numeric dimensions
   const getDimension = () => {
     if (typeof size === 'number') return size;
@@ -43,207 +46,216 @@ export const AriyawarinLogo: React.FC<AriyawarinLogoProps> = ({
   const dim = getDimension();
 
   // SVG Monogram Icon (The core App Icon & compact symbol mark)
-  const renderSymbol = (symbolSize: number) => (
-    <svg
-      width={symbolSize}
-      height={symbolSize}
-      viewBox="0 0 200 200"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={`shrink-0 transition-all duration-300 ease-out select-none ${
-        animated ? 'hover:scale-105' : ''
-      }`}
-      aria-label="ARIYAWARIN Official App Icon"
-    >
-      <defs>
-        {/* Background Shield Gradient: Deep Medical Teal & Obsidian Emerald */}
-        <linearGradient id="ariShieldGradComp" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#134e4a" />
-          <stop offset="45%" stopColor="#0f766e" />
-          <stop offset="85%" stopColor="#042f2e" />
-          <stop offset="100%" stopColor="#021d1c" />
-        </linearGradient>
+  const renderSymbol = (symbolSize: number) => {
+    const shieldGradId = `ariShieldGrad_${id}`;
+    const radialGlowId = `ariRadialGlow_${id}`;
+    const pulseGradId = `ariPulseGrad_${id}`;
+    const goldLightId = `ariGoldLight_${id}`;
+    const glowFilterId = `ariGlow_${id}`;
+    const shadowFilterId = `ariShadow_${id}`;
 
-        {/* Radial Ambient Core Glow */}
-        <radialGradient id="ariRadialGlowComp" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.35" />
-          <stop offset="60%" stopColor="#0d9488" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="#042f2e" stopOpacity="0" />
-        </radialGradient>
-
-        {/* Cardiovascular Pulse Waveform Gradient */}
-        <linearGradient id="ariPulseGradComp" x1="10" y1="100" x2="190" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#2dd4bf" />
-          <stop offset="30%" stopColor="#38bdf8" />
-          <stop offset="65%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#14b8a6" />
-        </linearGradient>
-
-        {/* Monogram Serif Stem Light Gradient */}
-        <linearGradient id="ariGoldLightComp" x1="40" y1="30" x2="160" y2="170" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
-          <stop offset="60%" stopColor="#f0fdfa" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#ccfbf1" stopOpacity="0.6" />
-        </linearGradient>
-
-        {/* Soft Glow Filter for Vital Node and Wave Ribbons */}
-        <filter id="ariGlowComp" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-
-        {/* Subtle Drop Shadow for Bold Monogram Stem */}
-        <filter id="ariShadowComp" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#021d1c" floodOpacity="0.6" />
-        </filter>
-      </defs>
-
-      {/* Squircle App Icon Base Container */}
-      <rect
-        x="5"
-        y="5"
-        width="190"
-        height="190"
-        rx="48"
-        fill="url(#ariShieldGradComp)"
-        stroke="#14b8a6"
-        strokeWidth="2.5"
-        strokeOpacity="0.5"
-      />
-
-      {/* Radial Ambient Core Glow with soft biometric pulse */}
-      <rect
-        x="6"
-        y="6"
-        width="188"
-        height="188"
-        rx="46"
-        fill="url(#ariRadialGlowComp)"
-        className={animated ? 'transition-opacity duration-700' : ''}
+    return (
+      <svg
+        width={symbolSize}
+        height={symbolSize}
+        viewBox="0 0 200 200"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={`shrink-0 transition-all duration-300 ease-out select-none ${
+          animated ? 'hover:scale-105' : ''
+        }`}
+        aria-label="ARIYAWARIN Official App Icon"
       >
-        {animated && (
-          <animate
-            attributeName="opacity"
-            values="0.55;1;0.55"
-            dur="3.2s"
-            repeatCount="indefinite"
-          />
-        )}
-      </rect>
+        <defs>
+          {/* Background Shield Gradient: Deep Medical Teal & Obsidian Emerald */}
+          <linearGradient id={shieldGradId} x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#134e4a" />
+            <stop offset="45%" stopColor="#0f766e" />
+            <stop offset="85%" stopColor="#042f2e" />
+            <stop offset="100%" stopColor="#021d1c" />
+          </linearGradient>
 
-      {/* Inner Accent Inset Ring */}
-      <rect
-        x="12"
-        y="12"
-        width="176"
-        height="176"
-        rx="40"
-        stroke="#2dd4bf"
-        strokeWidth="1"
-        strokeOpacity="0.25"
-        fill="none"
-      />
+          {/* Radial Ambient Core Glow */}
+          <radialGradient id={radialGlowId} cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.35" />
+            <stop offset="60%" stopColor="#0d9488" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#042f2e" stopOpacity="0" />
+          </radialGradient>
 
-      {/* Background Cardiovascular ECG Pulse Wave (Rhythm Line) */}
-      <path
-        d="M22 122 L52 122 L64 104 L74 140 L86 86 L98 128 L110 114 L120 122 L178 122"
-        stroke="url(#ariPulseGradComp)"
-        strokeWidth="2.2"
-        strokeOpacity="0.32"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+          {/* Cardiovascular Pulse Waveform Gradient */}
+          <linearGradient id={pulseGradId} x1="10" y1="100" x2="190" y2="100" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#2dd4bf" />
+            <stop offset="30%" stopColor="#38bdf8" />
+            <stop offset="65%" stopColor="#34d399" />
+            <stop offset="100%" stopColor="#14b8a6" />
+          </linearGradient>
 
-      {/* === The Signature ARIYAWARIN 'A' Monogram === */}
-      {/* 1. Left Serif Foot & Upward Slender Leg */}
-      <path
-        d="M38 152 C45 152 50 148 55 140 L94 48 C97 42 100 38 105 38 C110 38 113 42 116 48 L155 140 C160 148 165 152 172 152"
-        stroke="url(#ariGoldLightComp)"
-        strokeWidth="3.6"
-        strokeLinecap="round"
-        filter="url(#ariShadowComp)"
-      />
+          {/* Monogram Serif Stem Light Gradient */}
+          <linearGradient id={goldLightId} x1="40" y1="30" x2="160" y2="170" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
+            <stop offset="60%" stopColor="#f0fdfa" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#ccfbf1" stopOpacity="0.6" />
+          </linearGradient>
 
-      {/* 2. Left Stem Inner Decorative Pinstripe */}
-      <path
-        d="M58 135 L96 46"
-        stroke="#2dd4bf"
-        strokeWidth="1.8"
-        strokeOpacity="0.8"
-        strokeLinecap="round"
-      />
+          {/* Soft Glow Filter for Vital Node and Wave Ribbons */}
+          <filter id={glowFilterId} x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
 
-      {/* 3. Bold Right Diagonal Structural Stem */}
-      <path
-        d="M102 42 L148 148 C150 152 154 153 162 153 L164 153"
-        stroke="#ffffff"
-        strokeWidth="7.2"
-        strokeLinecap="round"
-        filter="url(#ariShadowComp)"
-      />
+          {/* Subtle Drop Shadow for Bold Monogram Stem */}
+          <filter id={shadowFilterId} x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#021d1c" floodOpacity="0.6" />
+          </filter>
+        </defs>
 
-      {/* 4. Top Serif Crown of 'A' Monogram */}
-      <path
-        d="M92 40 C98 37 112 37 118 40"
-        stroke="#ffffff"
-        strokeWidth="3.2"
-        strokeLinecap="round"
-      />
+        {/* Squircle App Icon Base Container */}
+        <rect
+          x="5"
+          y="5"
+          width="190"
+          height="190"
+          rx="48"
+          fill={`url(#${shieldGradId})`}
+          stroke="#14b8a6"
+          strokeWidth="2.5"
+          strokeOpacity="0.5"
+        />
 
-      {/* 5. Fluid Cardiovascular Wave Ribbons across Crossbar */}
-      {/* Upper fluid wave */}
-      <path
-        d="M24 128 C54 132 80 101 118 95 C148 90 168 99 184 107"
-        stroke="url(#ariPulseGradComp)"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        fill="none"
-        filter="url(#ariGlowComp)"
-      />
+        {/* Radial Ambient Core Glow with soft biometric pulse */}
+        <rect
+          x="6"
+          y="6"
+          width="188"
+          height="188"
+          rx="46"
+          fill={`url(#${radialGlowId})`}
+          className={animated ? 'transition-opacity duration-700' : ''}
+        >
+          {animated && (
+            <animate
+              attributeName="opacity"
+              values="0.55;1;0.55"
+              dur="3.2s"
+              repeatCount="indefinite"
+            />
+          )}
+        </rect>
 
-      {/* Middle crisp white pulse wave ribbon */}
-      <path
-        d="M34 138 C64 140 92 113 124 107 C152 102 166 111 178 117"
-        stroke="#ffffff"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        fill="none"
-      />
+        {/* Inner Accent Inset Ring */}
+        <rect
+          x="12"
+          y="12"
+          width="176"
+          height="176"
+          rx="40"
+          stroke="#2dd4bf"
+          strokeWidth="1"
+          strokeOpacity="0.25"
+          fill="none"
+        />
 
-      {/* Lower cyan arterial flow wave */}
-      <path
-        d="M46 147 C70 148 98 125 130 119 C154 115 166 121 174 125"
-        stroke="#2dd4bf"
-        strokeWidth="2.2"
-        strokeOpacity="0.88"
-        strokeLinecap="round"
-        fill="none"
-      />
+        {/* Background Cardiovascular ECG Pulse Wave (Rhythm Line) */}
+        <path
+          d="M22 122 L52 122 L64 104 L74 140 L86 86 L98 128 L110 114 L120 122 L178 122"
+          stroke={`url(#${pulseGradId})`}
+          strokeWidth="2.2"
+          strokeOpacity="0.32"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
 
-      {/* 6. Cardiovascular Vital Pulse Node */}
-      <circle cx="118" cy="95" r="5" fill="#38bdf8" filter="url(#ariGlowComp)">
-        {animated && (
-          <animate
-            attributeName="r"
-            values="4.5;6.2;4.5"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-        )}
-      </circle>
-      <circle cx="118" cy="95" r="2.5" fill="#ffffff">
-        {animated && (
-          <animate
-            attributeName="opacity"
-            values="0.8;1;0.8"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-        )}
-      </circle>
-      <circle cx="118" cy="95" r="1" fill="#ecfeff" />
-    </svg>
-  );
+        {/* === The Signature ARIYAWARIN 'A' Monogram === */}
+        {/* 1. Left Serif Foot & Upward Slender Leg */}
+        <path
+          d="M38 152 C45 152 50 148 55 140 L94 48 C97 42 100 38 105 38 C110 38 113 42 116 48 L155 140 C160 148 165 152 172 152"
+          stroke={`url(#${goldLightId})`}
+          strokeWidth="3.6"
+          strokeLinecap="round"
+          filter={`url(#${shadowFilterId})`}
+        />
+
+        {/* 2. Left Stem Inner Decorative Pinstripe */}
+        <path
+          d="M58 135 L96 46"
+          stroke="#2dd4bf"
+          strokeWidth="1.8"
+          strokeOpacity="0.8"
+          strokeLinecap="round"
+        />
+
+        {/* 3. Bold Right Diagonal Structural Stem */}
+        <path
+          d="M102 42 L148 148 C150 152 154 153 162 153 L164 153"
+          stroke="#ffffff"
+          strokeWidth="7.2"
+          strokeLinecap="round"
+          filter={`url(#${shadowFilterId})`}
+        />
+
+        {/* 4. Top Serif Crown of 'A' Monogram */}
+        <path
+          d="M92 40 C98 37 112 37 118 40"
+          stroke="#ffffff"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+        />
+
+        {/* 5. Fluid Cardiovascular Wave Ribbons across Crossbar */}
+        {/* Upper fluid wave */}
+        <path
+          d="M24 128 C54 132 80 101 118 95 C148 90 168 99 184 107"
+          stroke={`url(#${pulseGradId})`}
+          strokeWidth="3.4"
+          strokeLinecap="round"
+          fill="none"
+          filter={`url(#${glowFilterId})`}
+        />
+
+        {/* Middle crisp white pulse wave ribbon */}
+        <path
+          d="M34 138 C64 140 92 113 124 107 C152 102 166 111 178 117"
+          stroke="#ffffff"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          fill="none"
+        />
+
+        {/* Lower cyan arterial flow wave */}
+        <path
+          d="M46 147 C70 148 98 125 130 119 C154 115 166 121 174 125"
+          stroke="#2dd4bf"
+          strokeWidth="2.2"
+          strokeOpacity="0.88"
+          strokeLinecap="round"
+          fill="none"
+        />
+
+        {/* 6. Cardiovascular Vital Pulse Node */}
+        <circle cx="118" cy="95" r="5" fill="#38bdf8" filter={`url(#${glowFilterId})`}>
+          {animated && (
+            <animate
+              attributeName="r"
+              values="4.5;6.2;4.5"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+          )}
+        </circle>
+        <circle cx="118" cy="95" r="2.5" fill="#ffffff">
+          {animated && (
+            <animate
+              attributeName="opacity"
+              values="0.8;1;0.8"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+          )}
+        </circle>
+        <circle cx="118" cy="95" r="1" fill="#ecfeff" />
+      </svg>
+    );
+  };
 
   // Variant 1: Icon only (The standard App Icon)
   if (variant === 'icon') {

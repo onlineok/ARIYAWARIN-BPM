@@ -15,6 +15,7 @@ import { isEmailAuthorized } from '../services/googleAuth';
 
 interface AuthGateProps {
   user: User | null;
+  hasToken?: boolean;
   isCheckingAuth: boolean;
   isConnecting: boolean;
   onLogin: () => void;
@@ -24,6 +25,7 @@ interface AuthGateProps {
 
 export const AuthGate: React.FC<AuthGateProps> = ({
   user,
+  hasToken = false,
   isCheckingAuth,
   isConnecting,
   onLogin,

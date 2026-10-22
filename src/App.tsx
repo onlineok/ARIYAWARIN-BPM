@@ -7,8 +7,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DailyBPRecord } from './types/bp';
 import { Member } from './types/member';
-import { INITIAL_BP_RECORDS } from './data/initialData';
-import { INITIAL_MEMBERS } from './utils/bmi';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { HomeView } from './components/HomeView';
 import { DashboardView } from './components/DashboardView';
@@ -19,7 +17,6 @@ import { LogEntryModal } from './components/LogEntryModal';
 import { CsvExportModal } from './components/CsvExportModal';
 import { MemberManagementView } from './components/MemberManagementView';
 import { DailySmartEntryView } from './components/DailySmartEntryView';
-import { GoogleSheetsBar } from './components/GoogleSheetsBar';
 import { BrandLogoModal } from './components/BrandLogoModal';
 import { NotificationSettingsModal } from './components/NotificationSettingsModal';
 import { NotificationSlotBanner } from './components/NotificationSlotBanner';
@@ -35,67 +32,36 @@ import {
   initAuth,
   googleSignIn,
   googleSignOut,
-  getAccessToken,
+  hasActiveAccessToken,
   isEmailAuthorized,
 } from './services/googleAuth';
 import {
-  SpreadsheetConfig,
-  SHEETS_STORAGE_KEY,
-  SHEETS_URL_STORAGE_KEY,
-  createGoogleHealthSpreadsheet,
-  syncAllToGoogleSheet,
-  appendOrUpdateBPRecordInSheet,
-  syncMembersToGoogleSheet,
-  getThaiTimestamp,
-} from './services/googleSheets';
+  loadUserDatabase,
+  saveUserBPRecord,
+  deleteUserBPRecord,
+  updateUserHealthProfile,
+} from './services/appDatabase';
+import { getThaiTimestamp } from './utils/bpClassification';
 import { User } from 'firebase/auth';
 
-const STORAGE_KEY = 'ariyawarin_bp_monitor_records';
-const MEMBERS_STORAGE_KEY = 'ariyawarin_bp_members';
-const ACTIVE_MEMBER_KEY = 'ariyawarin_active_member_id';
-const TODAY_STR = '2026-10-12';
+export function getTodayDateString(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const TODAY_STR = getTodayDateString();
 
 export default function App() {
-  // Members State
-  const [members, setMembers] = useState<Member[]>(() => {
-    try {
-      const saved = localStorage.getItem(MEMBERS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to load members from localStorage', e);
-    }
-    return INITIAL_MEMBERS;
-  });
+  // Members State (strictly isolated to current authenticated user)
+  const [members, setMembers] = useState<Member[]>([]);
 
   // Active Member ID
-  const [activeMemberId, setActiveMemberId] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem(ACTIVE_MEMBER_KEY);
-      if (saved) return saved;
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_MEMBERS[0]?.id || 'mem-1';
-  });
+  const [activeMemberId, setActiveMemberId] = useState<string>('');
 
-  // Blood Pressure Records State
-  const [records, setRecords] = useState<DailyBPRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load records from localStorage', e);
-    }
-    return INITIAL_BP_RECORDS;
-  });
+  // Blood Pressure Records State (strictly isolated to current authenticated user)
+  const [records, setRecords] = useState<DailyBPRecord[]>([]);
 
   // Navigation & Modal State
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -109,40 +75,39 @@ export default function App() {
   );
   const [editingDate, setEditingDate] = useState<string>(TODAY_STR);
 
-  // Google Authentication & Sheets State
+  // Google Authentication State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
-  const [spreadsheetConfig, setSpreadsheetConfig] = useState<SpreadsheetConfig | null>(() => {
-    try {
-      const id = localStorage.getItem(SHEETS_STORAGE_KEY);
-      const url = localStorage.getItem(SHEETS_URL_STORAGE_KEY);
-      if (id && url) {
-        return {
-          spreadsheetId: id,
-          spreadsheetUrl: url,
-          title: 'ARIYAWARIN - ทะเบียนสมาชิกและบันทึกความดันโลหิต',
-        };
-      }
-    } catch (e) {
-      console.error('Failed to read spreadsheet config', e);
-    }
-    return null;
-  });
-
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
-  const [isSyncingSheets, setIsSyncingSheets] = useState(false);
+  const [hasGoogleToken, setHasGoogleToken] = useState<boolean>(() => hasActiveAccessToken());
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Init Auth on mount
+  // Init Auth on mount & load user-isolated database partition
   useEffect(() => {
     const unsubscribe = initAuth(
       (user, token) => {
         setGoogleUser(user);
+        setHasGoogleToken(Boolean(token));
         setIsCheckingAuth(false);
+
+        if (user?.email && isEmailAuthorized(user.email)) {
+          const userDb = loadUserDatabase(user.email, user.displayName);
+          setMembers([userDb.profile]);
+          setActiveMemberId(userDb.profile.id);
+          setRecords(userDb.records);
+        } else {
+          setMembers([]);
+          setRecords([]);
+          setActiveMemberId('');
+        }
       },
       () => {
         setGoogleUser(null);
+        setHasGoogleToken(false);
         setIsCheckingAuth(false);
+        setMembers([]);
+        setRecords([]);
+        setActiveMemberId('');
       }
     );
 
@@ -155,33 +120,6 @@ export default function App() {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
-
-  // Sync records to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    } catch (e) {
-      console.error('Failed to save records to localStorage', e);
-    }
-  }, [records]);
-
-  // Sync members to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(MEMBERS_STORAGE_KEY, JSON.stringify(members));
-    } catch (e) {
-      console.error('Failed to save members to localStorage', e);
-    }
-  }, [members]);
-
-  // Save active member ID
-  useEffect(() => {
-    try {
-      localStorage.setItem(ACTIVE_MEMBER_KEY, activeMemberId);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [activeMemberId]);
 
   // Toast Auto-dismiss
   useEffect(() => {
@@ -196,20 +134,16 @@ export default function App() {
     return members.find((m) => m.id === activeMemberId) || members[0] || null;
   }, [members, activeMemberId]);
 
-  // Records for active member (with fallback to records without memberId)
+  // Records for active member (strictly partitioned)
   const recordsForActiveMember = useMemo(() => {
-    const filtered = records.filter((r) => !r.memberId || r.memberId === activeMemberId);
-    return filtered.length > 0 ? filtered : records;
-  }, [records, activeMemberId]);
+    return records;
+  }, [records]);
 
   // Check if today has a record for active member
   const todayRecord = useMemo(() => {
-    return (
-      records.find((r) => r.date === TODAY_STR && (r.memberId === activeMemberId || !r.memberId)) ||
-      records.find((r) => r.date === TODAY_STR) ||
-      null
-    );
-  }, [records, activeMemberId]);
+    const todayStr = getTodayDateString();
+    return records.find((r) => r.date === todayStr) || null;
+  }, [records]);
 
   // Compute schedule status for the optimal slots (05:00-11:30 and 15:00 onwards)
   const scheduleStatus = useMemo(() => {
@@ -273,27 +207,17 @@ export default function App() {
       const result = await googleSignIn();
       if (result) {
         setGoogleUser(result.user);
+        setHasGoogleToken(Boolean(result.accessToken));
         const authorized = isEmailAuthorized(result.user.email);
-        if (authorized) {
+        if (authorized && result.user.email) {
+          const userDb = loadUserDatabase(result.user.email, result.user.displayName);
+          setMembers([userDb.profile]);
+          setActiveMemberId(userDb.profile.id);
+          setRecords(userDb.records);
           setToastMessage({
-            text: `ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ ${result.user.displayName || 'ผู้ดูแลระบบ'}`,
+            text: `ยินดีต้อนรับ ${userDb.profile.firstName} ${userDb.profile.lastName} เข้าสู่ฐานข้อมูลสุขภาพส่วนตัว`,
             type: 'success',
           });
-
-          // If no spreadsheet yet, prompt or create
-          if (!spreadsheetConfig && result.accessToken) {
-            try {
-              const cfg = await createGoogleHealthSpreadsheet(result.accessToken);
-              setSpreadsheetConfig(cfg);
-              await syncAllToGoogleSheet(result.accessToken, cfg.spreadsheetId, records, members);
-              setToastMessage({
-                text: 'สร้าง Google Sheets สำหรับเก็บข้อมูลสุขภาพเรียบร้อยแล้ว!',
-                type: 'success',
-              });
-            } catch (sheetErr) {
-              console.error('Initial spreadsheet note:', sheetErr);
-            }
-          }
         } else {
           setToastMessage({
             text: 'ไม่ได้รับอนุญาติ: บัญชี Google นี้ไม่มีสิทธิ์เข้าใช้งานระบบ',
@@ -317,6 +241,10 @@ export default function App() {
     try {
       await googleSignOut();
       setGoogleUser(null);
+      setHasGoogleToken(false);
+      setMembers([]);
+      setRecords([]);
+      setActiveMemberId('');
       setToastMessage({
         text: 'ออกจากระบบ Google เรียบร้อยแล้ว',
         type: 'info',
@@ -326,175 +254,100 @@ export default function App() {
     }
   };
 
-  // Create Google Spreadsheet
-  const handleCreateSpreadsheet = async () => {
-    setIsSyncingSheets(true);
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        await handleGoogleLogin();
-        return;
-      }
-
-      const cfg = await createGoogleHealthSpreadsheet(token);
-      setSpreadsheetConfig(cfg);
-      await syncAllToGoogleSheet(token, cfg.spreadsheetId, records, members);
+  // Member CRUD handlers (User profile update)
+  const handleAddMember = async (newMemberData: Omit<Member, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (googleUser?.email) {
+      const updatedDb = updateUserHealthProfile(googleUser.email, newMemberData, googleUser.displayName);
+      setMembers([updatedDb.profile]);
+      setRecords(updatedDb.records);
       setToastMessage({
-        text: 'สร้าง Google Sheets และซิงค์ข้อมูลทั้งหมดเรียบร้อยแล้ว!',
+        text: `อัปเดตข้อมูลผู้ใช้งาน "${newMemberData.firstName} ${newMemberData.lastName}" เรียบร้อยแล้ว`,
         type: 'success',
       });
-    } catch (e: any) {
-      console.error(e);
+    }
+  };
+
+  const handleUpdateMember = async (_id: string, updates: Partial<Member>) => {
+    if (googleUser?.email) {
+      const updatedDb = updateUserHealthProfile(googleUser.email, updates, googleUser.displayName);
+      setMembers([updatedDb.profile]);
+      setRecords(updatedDb.records);
       setToastMessage({
-        text: `สร้าง Google Sheets ไม่สำเร็จ: ${e.message}`,
-        type: 'error',
+        text: 'อัปเดตข้อมูลสุขภาพส่วนตัวเรียบร้อยแล้ว',
+        type: 'success',
       });
-    } finally {
-      setIsSyncingSheets(false);
     }
   };
 
-  // Sync All Data to Google Sheets
-  const handleSyncAllToSheets = async () => {
-    setIsSyncingSheets(true);
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        await handleGoogleLogin();
-        return;
-      }
-
-      if (!spreadsheetConfig?.spreadsheetId) {
-        await handleCreateSpreadsheet();
-        return;
-      }
-
-      const res = await syncAllToGoogleSheet(token, spreadsheetConfig.spreadsheetId, records, members);
-      if (res.success) {
-        setToastMessage({
-          text: res.message,
-          type: 'success',
-        });
-      } else {
-        setToastMessage({
-          text: res.message,
-          type: 'error',
-        });
-      }
-    } catch (e: any) {
-      console.error(e);
-      setToastMessage({
-        text: `ซิงค์ข้อมูลไม่สำเร็จ: ${e.message}`,
-        type: 'error',
-      });
-    } finally {
-      setIsSyncingSheets(false);
-    }
-  };
-
-  // Member CRUD handlers
-  const handleAddMember = async (newMemberData: Omit<Member, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newMember: Member = {
-      ...newMemberData,
-      id: `mem-${Date.now()}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    const updatedMembers = [newMember, ...members];
-    setMembers(updatedMembers);
-    setActiveMemberId(newMember.id);
+  const handleDeleteMember = async (_id: string) => {
     setToastMessage({
-      text: `เพิ่มสมาชิก "${newMember.firstName} ${newMember.lastName}" เรียบร้อยแล้ว`,
-      type: 'success',
-    });
-
-    // Background sync to Google Sheets if connected
-    const token = await getAccessToken();
-    if (token && spreadsheetConfig?.spreadsheetId) {
-      syncMembersToGoogleSheet(token, spreadsheetConfig.spreadsheetId, updatedMembers).catch(console.error);
-    }
-  };
-
-  const handleUpdateMember = async (id: string, updates: Partial<Member>) => {
-    const updatedMembers = members.map((m) => (m.id === id ? { ...m, ...updates, updatedAt: Date.now() } : m));
-    setMembers(updatedMembers);
-    setToastMessage({
-      text: 'อัปเดตข้อมูลสมาชิกเรียบร้อยแล้ว',
-      type: 'success',
-    });
-
-    const token = await getAccessToken();
-    if (token && spreadsheetConfig?.spreadsheetId) {
-      syncMembersToGoogleSheet(token, spreadsheetConfig.spreadsheetId, updatedMembers).catch(console.error);
-    }
-  };
-
-  const handleDeleteMember = async (id: string) => {
-    const updatedMembers = members.filter((m) => m.id !== id);
-    setMembers(updatedMembers);
-    if (activeMemberId === id && updatedMembers.length > 0) {
-      setActiveMemberId(updatedMembers[0].id);
-    }
-    setToastMessage({
-      text: 'ลบข้อมูลสมาชิกเรียบร้อยแล้ว',
+      text: 'ข้อมูลโปรไฟล์ผูกกับบัญชีผู้ใช้ปัจจุบัน ไม่สามารถลบโปรไฟล์หลักได้ (คุณสามารถแก้ไขข้อมูลได้ตลอดเวลา)',
       type: 'info',
     });
-
-    const token = await getAccessToken();
-    if (token && spreadsheetConfig?.spreadsheetId) {
-      syncMembersToGoogleSheet(token, spreadsheetConfig.spreadsheetId, updatedMembers).catch(console.error);
-    }
   };
 
-  // Handle Save / Update Record
+  // Handle Save / Update Record in User Isolated Database
   const handleSaveRecord = async (newOrUpdatedRecord: DailyBPRecord) => {
     const now = Date.now();
     const saveTimestamp = newOrUpdatedRecord.timestamp || getThaiTimestamp(now);
+    const activeProf = members[0];
+    const memberId = activeProf?.id || activeMemberId || 'usr-default';
+    const memberName = activeProf
+      ? `${activeProf.firstName} ${activeProf.lastName}`.trim()
+      : 'ผู้ใช้งาน';
 
-    // Ensure member association, updated timestamps
     const recordWithMember: DailyBPRecord = {
       ...newOrUpdatedRecord,
       updatedAt: now,
       lastSavedAt: now,
       timestamp: saveTimestamp,
-      memberId: newOrUpdatedRecord.memberId || activeMemberId,
-      memberName:
-        newOrUpdatedRecord.memberName ||
-        (currentMember ? `${currentMember.firstName} ${currentMember.lastName}` : 'ทั่วไป'),
+      memberId,
+      memberName,
     };
 
-    setRecords((prev) => {
-      const existingIndex = prev.findIndex((r) => r.date === recordWithMember.date);
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = recordWithMember;
-        return updated;
-      } else {
-        return [recordWithMember, ...prev];
-      }
-    });
-    setSelectedDate(recordWithMember.date);
-
-    // Auto-sync to Google Sheets in background if connected
-    const token = await getAccessToken();
-    if (token && spreadsheetConfig?.spreadsheetId) {
-      appendOrUpdateBPRecordInSheet(
-        token,
-        spreadsheetConfig.spreadsheetId,
-        recordWithMember,
-        recordWithMember.memberName || 'ทั่วไป',
-        saveTimestamp
-      ).catch(console.error);
+    if (googleUser?.email) {
+      const updatedDb = saveUserBPRecord(googleUser.email, recordWithMember, googleUser.displayName);
+      setRecords(updatedDb.records);
+      setSelectedDate(recordWithMember.date);
+      setToastMessage({
+        text: `บันทึกข้อมูลวันที่ ${recordWithMember.date} ลงฐานข้อมูลส่วนตัวเรียบร้อยแล้ว`,
+        type: 'success',
+      });
+    } else {
+      setRecords((prev) => {
+        const existingIndex = prev.findIndex((r) => r.date === recordWithMember.date);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = recordWithMember;
+          return updated;
+        } else {
+          return [recordWithMember, ...prev];
+        }
+      });
+      setSelectedDate(recordWithMember.date);
+      setToastMessage({
+        text: 'บันทึกข้อมูลเรียบร้อยแล้ว',
+        type: 'success',
+      });
     }
   };
 
-  // Handle Delete Record
+  // Handle Delete Record from User Isolated Database
   const handleDeleteRecord = (id: string) => {
-    setRecords((prev) => prev.filter((r) => r.id !== id));
-    setToastMessage({
-      text: 'ลบข้อมูลบันทึกความดันโลหิตเรียบร้อยแล้ว',
-      type: 'info',
-    });
+    if (googleUser?.email) {
+      const updatedDb = deleteUserBPRecord(googleUser.email, id, googleUser.displayName);
+      setRecords(updatedDb.records);
+      setToastMessage({
+        text: 'ลบข้อมูลบันทึกความดันโลหิตออกจากฐานข้อมูลเรียบร้อยแล้ว',
+        type: 'info',
+      });
+    } else {
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      setToastMessage({
+        text: 'ลบข้อมูลบันทึกความดันโลหิตเรียบร้อยแล้ว',
+        type: 'info',
+      });
+    }
   };
 
   const handleOpenLogModalForDate = (date: string) => {
@@ -503,7 +356,7 @@ export default function App() {
   };
 
   const handleOpenTodayModal = () => {
-    setEditingDate(TODAY_STR);
+    setEditingDate(getTodayDateString());
     setIsLogModalOpen(true);
   };
 
@@ -512,12 +365,14 @@ export default function App() {
     setActiveTab('calendar');
   };
 
-  const existingRecordForModal = records.find((r) => r.date === editingDate) || null;
+  const existingRecordForModal =
+    records.find((r) => r.date === editingDate) || null;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
       <AuthGate
         user={googleUser}
+        hasToken={hasGoogleToken}
         isCheckingAuth={isCheckingAuth}
         isConnecting={isConnectingGoogle}
         onLogin={handleGoogleLogin}
@@ -542,188 +397,165 @@ export default function App() {
           notificationPermission={notificationPermission}
         />
 
-      {/* Main Viewport Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 md:pb-12">
-        {/* Browser Push Notification Slot Alert Banner (05:00-11:30 and 15:00+) */}
-        <NotificationSlotBanner
-          todayRecord={todayRecord}
-          activeMember={currentMember}
-          onNavigateToEntry={() => setActiveTab('realtime')}
-          onOpenSettings={() => setIsNotificationModalOpen(true)}
+        {/* Main Viewport Container */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 md:pb-12">
+          {/* Browser Push Notification Slot Alert Banner (05:00-11:30 and 15:00+) */}
+          <NotificationSlotBanner
+            todayRecord={todayRecord}
+            activeMember={currentMember}
+            onNavigateToEntry={() => setActiveTab('realtime')}
+            onOpenSettings={() => setIsNotificationModalOpen(true)}
+          />
+
+          {/* Global Toast Alert */}
+          {toastMessage && (
+            <div
+              className={`mb-5 p-3.5 rounded-xl border text-xs sm:text-sm font-medium shadow-md transition-all animate-in fade-in flex items-center justify-between ${
+                toastMessage.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : toastMessage.type === 'error'
+                  ? 'bg-rose-50 border-rose-200 text-rose-900'
+                  : 'bg-teal-50 border-teal-200 text-teal-900'
+              }`}
+            >
+              <span>{toastMessage.text}</span>
+              <button
+                onClick={() => setToastMessage(null)}
+                className="text-xs font-bold underline ml-3 cursor-pointer opacity-75 hover:opacity-100"
+              >
+                ปิด
+              </button>
+            </div>
+          )}
+
+          {/* Tab 0: Pristine Modern Home Page */}
+          {activeTab === 'home' && (
+            <HomeView
+              records={recordsForActiveMember}
+              allRecords={records}
+              members={members}
+              activeMember={currentMember}
+              onSelectMember={setActiveMemberId}
+              onNavigateTab={setActiveTab}
+              onOpenLogModal={handleOpenTodayModal}
+              onOpenBrandModal={() => setIsBrandLogoModalOpen(true)}
+              onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
+              onOpenCsvExport={() => setIsCsvModalOpen(true)}
+              googleUser={googleUser}
+              onGoogleLogout={handleGoogleLogout}
+            />
+          )}
+
+          {/* Tab 1: Dashboard & Trends */}
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              records={recordsForActiveMember}
+              activeMember={currentMember}
+              onSelectDate={handleSelectDateFromDashboard}
+              onOpenLogModal={handleOpenTodayModal}
+              onOpenCsvExport={() => setIsCsvModalOpen(true)}
+              onNavigateTab={setActiveTab}
+              onOpenBrandModal={() => setIsBrandLogoModalOpen(true)}
+              onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
+            />
+          )}
+
+          {/* Tab 2: Real-time Daily Smart Entry */}
+          {activeTab === 'realtime' && (
+            <DailySmartEntryView
+              records={records}
+              members={members}
+              activeMemberId={activeMemberId}
+              onSelectMember={setActiveMemberId}
+              onSaveRecord={handleSaveRecord}
+              onConnectGoogle={handleGoogleLogin}
+              isGoogleConnected={Boolean(googleUser)}
+              onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
+              onNavigateHome={() => setActiveTab('home')}
+            />
+          )}
+
+          {/* Tab 3: Member Registry & BMI Analysis */}
+          {activeTab === 'members' && (
+            <MemberManagementView
+              members={members}
+              activeMemberId={activeMemberId}
+              onSelectActiveMember={setActiveMemberId}
+              onAddMember={handleAddMember}
+              onUpdateMember={handleUpdateMember}
+              onDeleteMember={handleDeleteMember}
+              onNavigateHome={() => setActiveTab('home')}
+            />
+          )}
+
+          {/* Tab 4: Calendar Log View */}
+          {activeTab === 'calendar' && (
+            <CalendarLogView
+              records={recordsForActiveMember}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              onOpenLogModalForDate={handleOpenLogModalForDate}
+              onDeleteRecord={handleDeleteRecord}
+              onNavigateHome={() => setActiveTab('home')}
+            />
+          )}
+
+          {/* Tab 5: Medical Guidelines (AHA/ACC & ESC/ESH) */}
+          {activeTab === 'guidelines' && (
+            <MedicalGuidelinesView onNavigateHome={() => setActiveTab('home')} />
+          )}
+
+          {/* Tab 6: Clinical Doctor Summary Report */}
+          {activeTab === 'report' && (
+            <DoctorReportView
+              records={recordsForActiveMember}
+              allRecords={records}
+              activeMember={currentMember}
+              members={members}
+              onSelectMember={setActiveMemberId}
+              onOpenCsvExport={() => setIsCsvModalOpen(true)}
+              onNavigateHome={() => setActiveTab('home')}
+            />
+          )}
+        </main>
+
+        {/* Log Entry / Edit Modal */}
+        <LogEntryModal
+          isOpen={isLogModalOpen}
+          onClose={() => setIsLogModalOpen(false)}
+          onSaveRecord={handleSaveRecord}
+          existingRecord={existingRecordForModal}
+          targetDate={editingDate}
         />
 
-        {/* Google Sheets Connection Banner Bar (Shown on non-home tabs to avoid duplication) */}
-        {activeTab !== 'home' && (
-          <GoogleSheetsBar
-            user={googleUser}
-            spreadsheetConfig={spreadsheetConfig}
-            isConnecting={isConnectingGoogle}
-            isSyncing={isSyncingSheets}
-            onLogin={handleGoogleLogin}
-            onLogout={handleGoogleLogout}
-            onCreateSpreadsheet={handleCreateSpreadsheet}
-            onSyncAll={handleSyncAllToSheets}
-          />
-        )}
+        {/* Dedicated CSV Export for Healthcare Provider Modal */}
+        <CsvExportModal
+          isOpen={isCsvModalOpen}
+          onClose={() => setIsCsvModalOpen(false)}
+          records={recordsForActiveMember}
+          activeMember={currentMember}
+        />
 
-        {/* Global Toast Alert */}
-        {toastMessage && (
-          <div
-            className={`mb-5 p-3.5 rounded-xl border text-xs sm:text-sm font-medium shadow-md transition-all animate-in fade-in flex items-center justify-between ${
-              toastMessage.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : toastMessage.type === 'error'
-                ? 'bg-rose-50 border-rose-200 text-rose-900'
-                : 'bg-teal-50 border-teal-200 text-teal-900'
-            }`}
-          >
-            <span>{toastMessage.text}</span>
-            <button
-              onClick={() => setToastMessage(null)}
-              className="text-xs font-bold underline ml-3 cursor-pointer opacity-75 hover:opacity-100"
-            >
-              ปิด
-            </button>
-          </div>
-        )}
+        {/* Brand Identity & Logo Showcase Modal */}
+        <BrandLogoModal
+          isOpen={isBrandLogoModalOpen}
+          onClose={() => setIsBrandLogoModalOpen(false)}
+        />
 
-        {/* Tab 0: Pristine Modern Home Page */}
-        {activeTab === 'home' && (
-          <HomeView
-            records={recordsForActiveMember}
-            allRecords={records}
-            members={members}
-            activeMember={currentMember}
-            onSelectMember={setActiveMemberId}
-            onNavigateTab={setActiveTab}
-            onOpenLogModal={handleOpenTodayModal}
-            onOpenBrandModal={() => setIsBrandLogoModalOpen(true)}
-            onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
-            onOpenCsvExport={() => setIsCsvModalOpen(true)}
-            googleUser={googleUser}
-            spreadsheetConfig={spreadsheetConfig}
-            isConnectingGoogle={isConnectingGoogle}
-            isSyncingSheets={isSyncingSheets}
-            onGoogleLogin={handleGoogleLogin}
-            onGoogleLogout={handleGoogleLogout}
-            onCreateSpreadsheet={handleCreateSpreadsheet}
-            onSyncAllToSheets={handleSyncAllToSheets}
-          />
-        )}
+        {/* Browser Push Notification System Settings & Test Modal */}
+        <NotificationSettingsModal
+          isOpen={isNotificationModalOpen}
+          onClose={() => setIsNotificationModalOpen(false)}
+          todayRecord={todayRecord}
+          activeMember={currentMember}
+          onNavigateToEntry={() => {
+            setActiveTab('realtime');
+            setIsNotificationModalOpen(false);
+          }}
+        />
 
-        {/* Tab 1: Dashboard & Trends */}
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            records={recordsForActiveMember}
-            activeMember={currentMember}
-            onSelectDate={handleSelectDateFromDashboard}
-            onOpenLogModal={handleOpenTodayModal}
-            onOpenCsvExport={() => setIsCsvModalOpen(true)}
-            onNavigateTab={setActiveTab}
-            onOpenBrandModal={() => setIsBrandLogoModalOpen(true)}
-            onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
-          />
-        )}
-
-        {/* Tab 2: Real-time Daily Smart Entry */}
-        {activeTab === 'realtime' && (
-          <DailySmartEntryView
-            records={records}
-            members={members}
-            activeMemberId={activeMemberId}
-            onSelectMember={setActiveMemberId}
-            onSaveRecord={handleSaveRecord}
-            spreadsheetConfig={spreadsheetConfig}
-            onConnectGoogle={handleGoogleLogin}
-            isGoogleConnected={Boolean(googleUser)}
-            onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
-            onNavigateHome={() => setActiveTab('home')}
-          />
-        )}
-
-        {/* Tab 3: Member Registry & BMI Analysis */}
-        {activeTab === 'members' && (
-          <MemberManagementView
-            members={members}
-            activeMemberId={activeMemberId}
-            onSelectActiveMember={setActiveMemberId}
-            onAddMember={handleAddMember}
-            onUpdateMember={handleUpdateMember}
-            onDeleteMember={handleDeleteMember}
-            onSyncToSheets={handleSyncAllToSheets}
-            isSyncing={isSyncingSheets}
-            onNavigateHome={() => setActiveTab('home')}
-          />
-        )}
-
-        {/* Tab 4: Calendar Log View */}
-        {activeTab === 'calendar' && (
-          <CalendarLogView
-            records={recordsForActiveMember}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            onOpenLogModalForDate={handleOpenLogModalForDate}
-            onDeleteRecord={handleDeleteRecord}
-            onNavigateHome={() => setActiveTab('home')}
-          />
-        )}
-
-        {/* Tab 5: Medical Guidelines (AHA/ACC & ESC/ESH) */}
-        {activeTab === 'guidelines' && (
-          <MedicalGuidelinesView onNavigateHome={() => setActiveTab('home')} />
-        )}
-
-        {/* Tab 6: Clinical Doctor Summary Report */}
-        {activeTab === 'report' && (
-          <DoctorReportView
-            records={recordsForActiveMember}
-            allRecords={records}
-            activeMember={currentMember}
-            members={members}
-            onSelectMember={setActiveMemberId}
-            onOpenCsvExport={() => setIsCsvModalOpen(true)}
-            onNavigateHome={() => setActiveTab('home')}
-          />
-        )}
-      </main>
-
-      {/* Log Entry / Edit Modal */}
-      <LogEntryModal
-        isOpen={isLogModalOpen}
-        onClose={() => setIsLogModalOpen(false)}
-        onSaveRecord={handleSaveRecord}
-        existingRecord={existingRecordForModal}
-        targetDate={editingDate}
-      />
-
-      {/* Dedicated CSV Export for Healthcare Provider Modal */}
-      <CsvExportModal
-        isOpen={isCsvModalOpen}
-        onClose={() => setIsCsvModalOpen(false)}
-        records={recordsForActiveMember}
-        activeMember={currentMember}
-      />
-
-      {/* Brand Identity & Logo Showcase Modal */}
-      <BrandLogoModal
-        isOpen={isBrandLogoModalOpen}
-        onClose={() => setIsBrandLogoModalOpen(false)}
-      />
-
-      {/* Browser Push Notification System Settings & Test Modal */}
-      <NotificationSettingsModal
-        isOpen={isNotificationModalOpen}
-        onClose={() => setIsNotificationModalOpen(false)}
-        todayRecord={todayRecord}
-        activeMember={currentMember}
-        onNavigateToEntry={() => {
-          setActiveTab('realtime');
-          setIsNotificationModalOpen(false);
-        }}
-      />
-
-      {/* Organization and Copyright Footer */}
-      <Footer />
+        {/* Organization and Copyright Footer */}
+        <Footer />
       </AuthGate>
     </div>
   );

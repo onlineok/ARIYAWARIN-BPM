@@ -25,8 +25,6 @@ interface MemberManagementViewProps {
   onAddMember: (member: Omit<Member, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onUpdateMember: (id: string, updates: Partial<Member>) => void;
   onDeleteMember: (id: string) => void;
-  onSyncToSheets?: () => void;
-  isSyncing?: boolean;
   onNavigateHome?: () => void;
 }
 
@@ -47,8 +45,6 @@ export const MemberManagementView: React.FC<MemberManagementViewProps> = ({
   onAddMember,
   onUpdateMember,
   onDeleteMember,
-  onSyncToSheets,
-  isSyncing,
   onNavigateHome,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
